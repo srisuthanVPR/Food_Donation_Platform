@@ -11,6 +11,7 @@ import DonorDashboard from './pages/donor/DonorDashboard';
 import ReceiverDashboard from './pages/receiver/ReceiverDashboard';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import Notifications from './pages/Notifications';
+import ImpactPassport from './pages/ImpactPassport';
 
 const ProtectedRoute = ({ children, roles }) => {
   const { user } = useAuth();
@@ -32,6 +33,7 @@ function AppRoutes() {
         <Route path="/receiver" element={<ProtectedRoute roles={['receiver']}><ReceiverDashboard /></ProtectedRoute>} />
         <Route path="/food" element={<ProtectedRoute roles={['receiver']}><ReceiverDashboard /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute roles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/impact" element={<ProtectedRoute><ImpactPassport /></ProtectedRoute>} />
         <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

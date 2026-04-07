@@ -33,6 +33,7 @@ export default function Navbar() {
             <>
               <Link to={dashboardLink} className="text-sm font-medium text-gray-600 hover:text-orange-500">Dashboard</Link>
               {user.role !== 'donor' && <Link to="/food" className="text-sm font-medium text-gray-600 hover:text-orange-500">Browse Food</Link>}
+              <Link to="/impact" className="text-sm font-medium text-gray-600 hover:text-orange-500">Impact Passport</Link>
               <Link to="/notifications" className="relative text-gray-600 hover:text-orange-500">
                 <Bell className="w-5 h-5" />
                 {unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">{unread}</span>}
@@ -61,6 +62,7 @@ export default function Navbar() {
           {user ? (
             <>
               <Link to={dashboardLink} className="text-sm font-medium" onClick={() => setMenuOpen(false)}>Dashboard</Link>
+              <Link to="/impact" className="text-sm font-medium" onClick={() => setMenuOpen(false)}>Impact Passport</Link>
               <Link to="/notifications" className="text-sm font-medium" onClick={() => setMenuOpen(false)}>Notifications {unread > 0 && `(${unread})`}</Link>
               <button onClick={handleLogout} className="text-sm text-red-500 text-left">Logout</button>
             </>

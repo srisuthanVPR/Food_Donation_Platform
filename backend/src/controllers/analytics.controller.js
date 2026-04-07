@@ -190,4 +190,141 @@ const getDemoReports = async (req, res) => {
   }
 };
 
-module.exports = { getOverallStats, getTopDonors, getTopReceivers, getDailyTrend, getCategoryStats, getDemoReports };
+const getImpactPassport = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const rescuedStatuses = ['claimed', 'picked_up', 'completed'];
+
+    const [platformMeals, platformCompleted, platformListings] = await Promise.all([
+      FoodListing.aggregate([
+        { $match: { status: { $in: rescuedStatuses } } },
+        { $group: { _id: null, total: { $sum: '$mealsCount' } } }
+      ]),
+      Claim.countDocuments({ status: 'completed' }),
+      FoodListing.countDocuments()
+    ]);
+
+    let personalMeals = 0;
+    let personalActions = 0;
+    let recentActivity = [];
+
+    if (req.user.role === 'donor') {
+      const [mealResult, actions, recent] = await Promise.all([
+        FoodListing.aggregate([
+          { $match: { donor: userId, status: { $in: rescuedStatuses } } },
+          { $group: { _id: null, total: { $sum: '$mealsCount' } } }
+        ]),
+        FoodListing.countDocuments({ donor: userId }),
+        FoodListing.find({ donor: userId })
+          .sort({ createdAt: -1 })
+          .limit(4)
+          .select('foodName mealsCount status createdAt')
+      ]);
+      personalMeals = mealResult[0]?.total || 0;
+      personalActions = actions;
+      recentActivity = recent.map(item => ({
+        title: item.foodName,
+        detail: `${item.mealsCount} meals, ${item.status.replace('_', ' ')}`,
+        date: item.createdAt
+      }));
+    } else if (req.user.role === 'receiver') {
+      const [claims, actions] = await Promise.all([
+        Claim.find({ claimedBy: userId })
+          .populate('foodListing', 'foodName mealsCount status')
+          .sort({ createdAt: -1 })
+          .limit(8),
+        Claim.countDocuments({ claimedBy: userId })
+      ]);
+      personalMeals = claims.reduce((sum, claim) => {
+        const rescued = ['picked_up', 'completed', 'claimed'].includes(claim.status);
+        return rescued ? sum + (claim.foodListing?.mealsCount || 0) : sum;
+      }, 0);
+      personalActions = actions;
+      recentActivity = claims.slice(0, 4).map(claim => ({
+        title: claim.foodListing?.foodName || 'Food donation',
+        detail: `${claim.foodListing?.mealsCount || 0} meals, ${claim.status.replace('_', ' ')}`,
+        date: claim.createdAt
+      }));
+    } else {
+      personalMeals = platformMeals[0]?.total || 0;
+      personalActions = platformListings;
+      recentActivity = await FoodListing.find()
+        .sort({ createdAt: -1 })
+        .limit(4)
+        .select('foodName mealsCount status createdAt')
+        .then(items => items.map(item => ({
+          title: item.foodName,
+          detail: `${item.mealsCount} meals, ${item.status.replace('_', ' ')}`,
+          date: item.createdAt
+        })));
+    }
+
+    const badges = [
+      {
+        name: 'First Rescue',
+        description: 'Started the rescue journey.',
+        unlocked: personalActions > 0
+      },
+      {
+        name: 'Meal Multiplier',
+        description: 'Helped move 50 or more meals.',
+        unlocked: personalMeals >= 50
+      },
+      {
+        name: 'Community Shield',
+        description: 'Supported 100 or more rescued meals.',
+        unlocked: personalMeals >= 100
+      },
+      {
+        name: 'Zero Waste Champion',
+        description: 'Reached 250 rescued meals.',
+        unlocked: personalMeals >= 250
+      }
+    ];
+
+    const nextActions = {
+      donor: [
+        'Post food at least two hours before expiry.',
+        'Add phone details and clear pickup notes.',
+        'Use the donor claim panel to confirm pickups quickly.'
+      ],
+      receiver: [
+        'Check urgent listings before peak meal windows.',
+        'Mark pickups and deliveries as soon as they happen.',
+        'Use map view to prioritize nearby donations.'
+      ],
+      admin: [
+        'Review demo reports for risk hotspots.',
+        'Watch the waste rate and claim completion rate.',
+        'Deactivate stale test accounts before a presentation.'
+      ]
+    };
+
+    res.json({
+      user: {
+        name: req.user.name,
+        role: req.user.role,
+        organization: req.user.organization
+      },
+      personal: {
+        mealsRescued: personalMeals,
+        actionsCompleted: personalActions,
+        equivalentPlates: personalMeals,
+        estimatedFamiliesServed: Math.floor(personalMeals / 4),
+        badgeCount: badges.filter(badge => badge.unlocked).length
+      },
+      platform: {
+        mealsRescued: platformMeals[0]?.total || 0,
+        completedPickups: platformCompleted,
+        totalListings: platformListings
+      },
+      badges,
+      nextActions: nextActions[req.user.role] || nextActions.receiver,
+      recentActivity
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { getOverallStats, getTopDonors, getTopReceivers, getDailyTrend, getCategoryStats, getDemoReports, getImpactPassport };
