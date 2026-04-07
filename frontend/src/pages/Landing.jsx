@@ -60,7 +60,6 @@ export default function Landing() {
           </div>
         </div>
       </section>
-
       <section className="py-16 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-10">
